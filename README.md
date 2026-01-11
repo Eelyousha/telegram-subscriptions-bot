@@ -79,12 +79,14 @@ podman-compose -f podman-compose.yml up -d
 ### Локальный запуск (разработка)
 
 ```bash
-# Создать виртуальное окружение
-python -m venv .venv
-source .venv/bin/activate
+# Установить Poetry (если ещё не установлен)
+curl -sSL https://install.python-poetry.org | python3 -
 
 # Установить зависимости
-pip install -r requirements.txt
+poetry install
+
+# Активировать виртуальное окружение
+poetry shell
 
 # Создать .env файл
 cat > .env << EOF
@@ -107,13 +109,20 @@ docker run -d --name subscriptions-db \
   -p 5432:5432 postgres:16-alpine
 
 # Применить миграции
-alembic upgrade head
+poetry run alembic upgrade head
 
 # Запустить API
-python -m src.api.main
+poetry run python -m src.api.main
 
 # В другом терминале — запустить бота
-python -m src.bot.main
+poetry run python -m src.bot.main
+
+# Или использовать Makefile для удобства
+make migrate    # Применить миграции
+make run-api    # Запустить API
+make run-bot    # Запустить бота
+make test       # Запустить тесты
+make help       # Посмотреть все доступные команды
 ```
 
 ## API Endpoints
@@ -131,6 +140,27 @@ python -m src.bot.main
 | `GET` | `/metrics` | Prometheus метрики |
 
 Документация API: http://localhost:8000/docs
+
+## Управление зависимостями
+
+Проект использует **Poetry** для управления зависимостями:
+
+```bash
+# Добавить новую зависимость
+poetry add package-name
+
+# Добавить зависимость для разработки
+poetry add --group dev package-name
+
+# Обновить зависимости
+poetry update
+
+# Показать все зависимости
+poetry show
+
+# Экспортировать в requirements.txt (если нужно)
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+```
 
 ## Миграции базы данных
 

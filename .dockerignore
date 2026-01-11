@@ -12,6 +12,7 @@ build
 .venv
 venv/
 ENV/
+poetry.toml
 .git
 .gitignore
 README.md
@@ -20,3 +21,6 @@ README.md
 htmlcov/
 *.log
 .DS_Store
+tests/
+.ruff_cache/
+.mypy_cache/
