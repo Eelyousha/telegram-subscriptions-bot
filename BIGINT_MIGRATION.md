@@ -230,7 +230,104 @@ class UserCreate(BaseModel):
 
 ---
 
-## Команды для применения в production
+## Применение миграции в Docker Compose
+
+### Вариант 1: Миграция в работающем контейнере (рекомендуется)
+
+```bash
+# 1. Убедитесь, что контейнеры запущены
+docker compose ps
+
+# 2. Сделать бэкап базы данных (ОБЯЗАТЕЛЬНО!)
+docker compose exec db pg_dump -U subscriptions_user -d subscriptions > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Или с использованием docker volume backup
+docker run --rm \
+  --volumes-from telegram-subscriptions-bot-db-1 \
+  -v $(pwd):/backup \
+  postgres:16-alpine \
+  pg_dump -U subscriptions_user -d subscriptions -f /backup/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 3. Применить миграцию через API контейнер
+docker compose exec api alembic upgrade head
+
+# 4. Проверить текущую версию миграции
+docker compose exec api alembic current
+
+# Должно вывести:
+# 002 (head)
+
+# 5. Перезапустить контейнеры для применения изменений
+docker compose restart api bot
+
+# 6. Проверить логи
+docker compose logs -f api bot
+```
+
+### Вариант 2: Миграция при развертывании (CI/CD)
+
+Для автоматизации миграций можно добавить init-контейнер в docker-compose:
+
+```yaml
+# Добавить в docker-compose.yml
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://subscriptions_user:subscriptions_pass@db:5432/subscriptions
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: "no"  # Запустить только один раз
+```
+
+Затем:
+```bash
+# 1. Бэкап (как в Варианте 1)
+docker compose exec db pg_dump -U subscriptions_user -d subscriptions > backup.sql
+
+# 2. Запустить миграцию
+docker compose up migrate
+
+# 3. Перезапустить основные сервисы
+docker compose restart api bot
+```
+
+### Вариант 3: Полное пересоздание с миграцией
+
+```bash
+# 1. Остановить контейнеры
+docker compose down
+
+# 2. Бэкап данных
+# (если контейнеры остановлены, запустите только БД)
+docker compose up -d db
+sleep 5
+docker compose exec db pg_dump -U subscriptions_user -d subscriptions > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose down
+
+# 3. Пересобрать образы с новым кодом
+docker compose build --no-cache
+
+# 4. Запустить все сервисы
+docker compose up -d
+
+# 5. БД уже запущена, применить миграцию
+docker compose exec api alembic upgrade head
+
+# 6. Проверить статус
+docker compose exec api alembic current
+docker compose logs -f
+```
+
+---
+
+## Команды для применения в production (без Docker)
 
 ```bash
 # 1. Сделать бэкап базы данных

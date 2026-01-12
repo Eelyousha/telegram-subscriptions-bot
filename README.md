@@ -164,6 +164,23 @@ poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 ## Миграции базы данных
 
+### Для Docker Compose (рекомендуется)
+
+```bash
+# Применить миграцию на int64 для telegram_id (автоматический бэкап)
+./scripts/migrate.sh
+
+# Или вручную
+docker compose exec db pg_dump -U subscriptions_user subscriptions > backup.sql
+docker compose exec api alembic upgrade head
+docker compose restart api bot
+
+# Откатить миграцию (если необходимо)
+./scripts/rollback.sh
+```
+
+### Для локального запуска
+
 ```bash
 # Применить миграции
 alembic upgrade head
@@ -177,6 +194,13 @@ alembic downgrade -1
 # Просмотр истории
 alembic history
 ```
+
+📖 **Подробная документация:**
+- [DOCKER_MIGRATION_GUIDE.md](DOCKER_MIGRATION_GUIDE.md) - Пошаговая инструкция для Docker Compose
+- [BIGINT_MIGRATION.md](BIGINT_MIGRATION.md) - Миграция telegram_id на BigInteger (int64)
+- [scripts/README.md](scripts/README.md) - Документация скриптов миграции
+
+⚠️ **Важно:** После обновления кода с новыми миграциями обязательно примените их командой выше!
 
 ## Мониторинг
 
