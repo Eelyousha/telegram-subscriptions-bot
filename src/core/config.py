@@ -1,4 +1,6 @@
 """Application configuration."""
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,4 +35,31 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    """
+    Get cached settings instance.
+
+    This function is cached to ensure a single Settings instance is used
+    throughout the application lifecycle. It can be used as a FastAPI dependency
+    or called directly.
+
+    Returns:
+        Settings instance
+
+    Examples:
+        As a FastAPI dependency:
+        >>> @app.get("/")
+        >>> def root(settings: Settings = Depends(get_settings)):
+        >>>     return {"db": settings.database_url}
+
+        Direct usage:
+        >>> settings = get_settings()
+        >>> print(settings.database_url)
+    """
+    return Settings()
+
+
+# Global settings instance for backward compatibility
+# Prefer using get_settings() for new code
+settings = get_settings()

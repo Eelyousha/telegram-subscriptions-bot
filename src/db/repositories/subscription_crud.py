@@ -1,85 +1,30 @@
-"""Database repository layer."""
-from datetime import date, datetime, timedelta
+"""Subscription CRUD repository."""
+from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.exceptions import ErrorMessages, NotFoundException
-from src.utils.currency import CurrencyCalculator
-
-from .models import Subscription, User
+from src.db.models import Subscription
 
 
-class UserRepository:
-    """User repository."""
-
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def upsert(
-        self, telegram_id: int, username: str | None, first_name: str | None
-    ) -> User:
-        """Create or update user."""
-        stmt = select(User).where(User.telegram_id == telegram_id)
-        result = await self.session.execute(stmt)
-        user = result.scalar_one_or_none()
-
-        if user:
-            user.username = username
-            user.first_name = first_name
-            user.last_seen = datetime.utcnow()
-        else:
-            user = User(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_seen=datetime.utcnow(),
-            )
-            self.session.add(user)
-
-        await self.session.commit()
-        await self.session.refresh(user)
-        return user
-
-    async def get(self, telegram_id: int) -> User | None:
-        """Get user by telegram_id."""
-        stmt = select(User).where(User.telegram_id == telegram_id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def update_last_seen(self, telegram_id: int) -> None:
-        """Update user's last seen time."""
-        stmt = (
-            update(User)
-            .where(User.telegram_id == telegram_id)
-            .values(last_seen=datetime.utcnow())
-        )
-        await self.session.execute(stmt)
-        await self.session.commit()
-
-    async def count_active_24h(self) -> int:
-        """Count users active in last 24 hours."""
-        threshold = datetime.utcnow() - timedelta(hours=24)
-        stmt = select(func.count(User.telegram_id)).where(User.last_seen >= threshold)
-        result = await self.session.execute(stmt)
-        return result.scalar() or 0
-
-    async def count_total(self) -> int:
-        """Count total users."""
-        stmt = select(func.count(User.telegram_id))
-        result = await self.session.execute(stmt)
-        return result.scalar() or 0
-
-
-class SubscriptionRepository:
-    """Subscription repository."""
+class SubscriptionCRUDRepository:
+    """Subscription repository for CRUD operations."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
     async def create(self, telegram_id: int, data: dict[str, Any]) -> Subscription:
-        """Create subscription."""
+        """Create subscription.
+
+        Args:
+            telegram_id: Telegram user ID
+            data: Subscription data
+
+        Returns:
+            Created subscription
+        """
         subscription = Subscription(telegram_id=telegram_id, **data)
         self.session.add(subscription)
         await self.session.commit()
@@ -87,14 +32,20 @@ class SubscriptionRepository:
         return subscription
 
     async def get_by_id(self, subscription_id: int) -> Subscription | None:
-        """Get subscription by ID."""
+        """Get subscription by ID.
+
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            Subscription or None if not found
+        """
         stmt = select(Subscription).where(Subscription.id == subscription_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_id_or_raise(self, subscription_id: int) -> Subscription:
-        """
-        Get subscription by ID or raise NotFoundException.
+        """Get subscription by ID or raise NotFoundException.
 
         Args:
             subscription_id: Subscription ID
@@ -111,7 +62,14 @@ class SubscriptionRepository:
         return subscription
 
     async def get_all_by_user(self, telegram_id: int) -> list[Subscription]:
-        """Get all active subscriptions for user."""
+        """Get all active subscriptions for user.
+
+        Args:
+            telegram_id: Telegram user ID
+
+        Returns:
+            List of active subscriptions
+        """
         stmt = (
             select(Subscription)
             .where(
@@ -128,7 +86,15 @@ class SubscriptionRepository:
     async def update(
         self, subscription_id: int, data: dict[str, Any]
     ) -> Subscription | None:
-        """Update subscription."""
+        """Update subscription.
+
+        Args:
+            subscription_id: Subscription ID
+            data: Updated data
+
+        Returns:
+            Updated subscription or None if not found
+        """
         subscription = await self.get_by_id(subscription_id)
         if not subscription:
             return None
@@ -143,7 +109,14 @@ class SubscriptionRepository:
         return subscription
 
     async def soft_delete(self, subscription_id: int) -> bool:
-        """Mark subscription as inactive."""
+        """Mark subscription as inactive.
+
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            True if successful, False if not found
+        """
         subscription = await self.get_by_id(subscription_id)
         if not subscription:
             return False
@@ -154,7 +127,14 @@ class SubscriptionRepository:
         return True
 
     async def get_pending_notifications(self, target_date: date) -> list[Subscription]:
-        """Get subscriptions requiring notification."""
+        """Get subscriptions requiring notification.
+
+        Args:
+            target_date: Date to check notifications for
+
+        Returns:
+            List of subscriptions needing notifications
+        """
         stmt = select(Subscription).where(
             and_(
                 Subscription.is_active == True,
@@ -167,7 +147,14 @@ class SubscriptionRepository:
         return list(result.scalars().all())
 
     async def advance_next_payment(self, subscription_id: int) -> bool:
-        """Advance next_payment by period_days."""
+        """Advance next_payment by period_days.
+
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            True if successful, False if not found
+        """
         subscription = await self.get_by_id(subscription_id)
         if not subscription:
             return False
@@ -180,7 +167,11 @@ class SubscriptionRepository:
         return True
 
     async def advance_past_payments(self) -> int:
-        """Advance all past payments to next period."""
+        """Advance all past payments to next period.
+
+        Returns:
+            Number of subscriptions updated
+        """
         today = date.today()
         stmt = select(Subscription).where(
             and_(
@@ -201,30 +192,3 @@ class SubscriptionRepository:
 
         await self.session.commit()
         return count
-
-    async def count_total(self) -> int:
-        """Count total active subscriptions."""
-        stmt = select(func.count(Subscription.id)).where(Subscription.is_active == True)
-        result = await self.session.execute(stmt)
-        return result.scalar() or 0
-
-    async def get_total_monthly_amount_rub(self) -> float:
-        """Get total monthly amount in RUB (simplified)."""
-        # Simplified: only count RUB subscriptions, convert to monthly
-        stmt = select(Subscription).where(
-            and_(
-                Subscription.is_active == True,
-                Subscription.currency == "RUB",
-            )
-        )
-        result = await self.session.execute(stmt)
-        subscriptions = result.scalars().all()
-
-        calculator = CurrencyCalculator()
-        total = 0.0
-        for sub in subscriptions:
-            # Use centralized calculation logic
-            monthly = calculator.to_monthly_equivalent(sub.amount, sub.period_days)
-            total += monthly
-
-        return total

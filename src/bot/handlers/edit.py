@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from src.bot.api_client import APIClient
+from src.bot.api import SubscriptionAPIClient
 from src.bot.keyboards import (
     currency_keyboard,
     edit_fields_keyboard,
@@ -21,12 +21,12 @@ router = Router()
 
 
 @router.message(Command("edit"))
-async def cmd_edit(message: Message, api_client: APIClient, state: FSMContext):
+async def cmd_edit(message: Message, subscription_client: SubscriptionAPIClient, state: FSMContext):
     """Start editing subscription."""
     if not message.from_user:
         return
 
-    subscriptions = await api_client.get_subscriptions(message.from_user.id)
+    subscriptions = await subscription_client.get_subscriptions(message.from_user.id)
 
     if not subscriptions:
         await message.answer("У вас нет подписок")
@@ -40,12 +40,12 @@ async def cmd_edit(message: Message, api_client: APIClient, state: FSMContext):
 
 
 @router.callback_query(EditSubscription.select_subscription, F.data.startswith("sub:"))
-async def select_subscription(callback: CallbackQuery, api_client: APIClient, state: FSMContext):
+async def select_subscription(callback: CallbackQuery, subscription_client: SubscriptionAPIClient, state: FSMContext):
     """Show edit menu."""
     subscription_id = int(callback.data.split(":")[1])
 
     # Get subscription details
-    subscriptions = await api_client.get_subscriptions(callback.from_user.id)
+    subscriptions = await subscription_client.get_subscriptions(callback.from_user.id)
     subscription = next((s for s in subscriptions if s["id"] == subscription_id), None)
 
     if not subscription:
@@ -103,14 +103,14 @@ async def select_field(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(EditSubscription.edit_value, F.data.startswith("currency:"))
-async def edit_currency(callback: CallbackQuery, state: FSMContext, api_client: APIClient):
+async def edit_currency(callback: CallbackQuery, state: FSMContext, subscription_client: SubscriptionAPIClient):
     """Edit currency."""
     currency = callback.data.split(":")[1]
     data = await state.get_data()
     subscription_id = data["subscription_id"]
 
     try:
-        await api_client.update_subscription(subscription_id, {"currency": currency})
+        await subscription_client.update_subscription(subscription_id, {"currency": currency})
         await callback.message.edit_text(f"✅ Валюта изменена на {currency}")
         logger.info("subscription_updated", user_id=callback.from_user.id, subscription_id=subscription_id)
     except Exception as e:
@@ -122,7 +122,7 @@ async def edit_currency(callback: CallbackQuery, state: FSMContext, api_client: 
 
 
 @router.callback_query(EditSubscription.edit_value, F.data.startswith("period:"))
-async def edit_period(callback: CallbackQuery, state: FSMContext, api_client: APIClient):
+async def edit_period(callback: CallbackQuery, state: FSMContext, subscription_client: SubscriptionAPIClient):
     """Edit period."""
     period_data = callback.data.split(":")[1]
 
@@ -136,7 +136,7 @@ async def edit_period(callback: CallbackQuery, state: FSMContext, api_client: AP
     subscription_id = data["subscription_id"]
 
     try:
-        await api_client.update_subscription(subscription_id, {"period_days": period_days})
+        await subscription_client.update_subscription(subscription_id, {"period_days": period_days})
         await callback.message.edit_text(f"✅ Период изменен на {period_days} дн.")
         logger.info("subscription_updated", user_id=callback.from_user.id, subscription_id=subscription_id)
     except Exception as e:
@@ -148,7 +148,7 @@ async def edit_period(callback: CallbackQuery, state: FSMContext, api_client: AP
 
 
 @router.message(EditSubscription.edit_value)
-async def edit_value(message: Message, state: FSMContext, api_client: APIClient):
+async def edit_value(message: Message, state: FSMContext, subscription_client: SubscriptionAPIClient):
     """Process field value edit."""
     data = await state.get_data()
     field = data["field"]
@@ -185,7 +185,7 @@ async def edit_value(message: Message, state: FSMContext, api_client: APIClient)
                 raise ValueError
             update_data["notify_days"] = notify_days
 
-        await api_client.update_subscription(subscription_id, update_data)
+        await subscription_client.update_subscription(subscription_id, update_data)
         await message.answer("✅ Поле обновлено")
         logger.info("subscription_updated", user_id=message.from_user.id, subscription_id=subscription_id)
 

@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from src.bot.api_client import APIClient
+from src.bot.api import SubscriptionAPIClient, UserAPIClient
 from src.bot.handlers import add, delete, edit, list, start, stats
 from src.bot.middlewares import LoggingMiddleware, MetricsMiddleware, ThrottlingMiddleware
 from src.core.config import settings
@@ -28,16 +28,18 @@ async def main():
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    # Create API client
-    api_client = APIClient()
+    # Create API clients
+    user_client = UserAPIClient()
+    subscription_client = SubscriptionAPIClient()
 
     # Register middlewares
     dp.message.middleware(LoggingMiddleware())
     dp.message.middleware(ThrottlingMiddleware(rate=settings.throttle_rate))
     dp.message.middleware(MetricsMiddleware())
 
-    # Inject API client into handlers
-    dp["api_client"] = api_client
+    # Inject API clients into handlers
+    dp["user_client"] = user_client
+    dp["subscription_client"] = subscription_client
 
     # Register routers
     dp.include_router(start.router)
@@ -50,10 +52,13 @@ async def main():
     # Start polling
     try:
         logger.info("bot_started")
-        await dp.start_polling(bot, api_client=api_client)
+        await dp.start_polling(
+            bot, user_client=user_client, subscription_client=subscription_client
+        )
     finally:
         logger.info("bot_shutting_down")
-        await api_client.close()
+        await user_client.close()
+        await subscription_client.close()
         await bot.session.close()
 
 

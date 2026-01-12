@@ -3,7 +3,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.bot.api_client import APIClient
+from src.bot.api import UserAPIClient
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -11,13 +11,13 @@ router = Router()
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, api_client: APIClient):
+async def cmd_start(message: Message, user_client: UserAPIClient):
     """Handle /start command."""
     if not message.from_user:
         return
 
     # Register user
-    await api_client.create_user(
+    await user_client.create_user(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
         first_name=message.from_user.first_name,

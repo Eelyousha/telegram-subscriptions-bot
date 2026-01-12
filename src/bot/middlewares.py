@@ -6,7 +6,6 @@ from typing import Any, Awaitable, Callable
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
 
-from src.core.config import settings
 from src.core.logging import get_logger
 from src.metrics.prometheus import bot_command_duration_seconds, bot_commands_total
 

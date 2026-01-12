@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from src.core.config import settings
 from src.core.logging import get_logger
 from src.db.database import AsyncSessionLocal
-from src.db.repository import SubscriptionRepository
+from src.db.repositories import SubscriptionRepository
 from src.metrics.prometheus import notifications_sent_total
 
 logger = get_logger(__name__)

@@ -6,10 +6,11 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from src.bot.api_client import APIClient
+from src.bot.api import SubscriptionAPIClient
 from src.bot.keyboards import currency_keyboard, period_keyboard, today_keyboard
 from src.bot.states import AddSubscription
 from src.core.logging import get_logger
+from src.utils.formatters import DateFormatter, PeriodFormatter
 
 logger = get_logger(__name__)
 router = Router()
@@ -75,7 +76,7 @@ async def process_period(callback: CallbackQuery, state: FSMContext):
         await state.set_state(AddSubscription.custom_period)
     else:
         period_days = int(period_data)
-        period_text = {"7": "неделя", "30": "месяц", "365": "год"}[period_data]
+        period_text = PeriodFormatter.format(period_days)
 
         await state.update_data(period_days=period_days)
         await callback.message.edit_text(f"🔄 Период: {period_text}")
@@ -131,7 +132,9 @@ async def process_next_payment(message: Message, state: FSMContext):
 
 
 @router.message(AddSubscription.notify_days)
-async def process_notify_days(message: Message, state: FSMContext, api_client: APIClient):
+async def process_notify_days(
+    message: Message, state: FSMContext, subscription_client: SubscriptionAPIClient
+):
     """Process notify days and create subscription."""
     try:
         notify_days = int(message.text) if message.text else 3
@@ -161,21 +164,19 @@ async def process_notify_days(message: Message, state: FSMContext, api_client: A
     }
 
     try:
-        subscription = await api_client.create_subscription(
+        subscription = await subscription_client.create_subscription(
             telegram_id=message.from_user.id,
             data=subscription_data,
         )
 
-        # Format response
-        period_text = {7: "неделю", 30: "месяц", 365: "год"}.get(
-            data["period_days"], f"{data['period_days']} дн."
-        )
+        # Format response using formatters
+        period_text = PeriodFormatter.format(data["period_days"], case="accusative")
+        next_payment_date = datetime.fromisoformat(data["next_payment"]).date()
 
-        next_payment_date = datetime.fromisoformat(data["next_payment"])
         text = (
             f"✅ Подписка добавлена!\n\n"
             f"{data['name']} — {data['amount']} {data['currency']}/{period_text}\n"
-            f"Следующее списание: {next_payment_date.strftime('%d.%m.%Y')}\n"
+            f"Следующее списание: {DateFormatter.format_russian(next_payment_date)}\n"
             f"Напомню за {notify_days} дн."
         )
 

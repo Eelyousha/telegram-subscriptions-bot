@@ -5,7 +5,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.bot.api_client import APIClient
+from src.bot.api import SubscriptionAPIClient
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -13,12 +13,12 @@ router = Router()
 
 
 @router.message(Command("stats"))
-async def cmd_stats(message: Message, api_client: APIClient):
+async def cmd_stats(message: Message, subscription_client: SubscriptionAPIClient):
     """Show user statistics."""
     if not message.from_user:
         return
 
-    stats = await api_client.get_stats(message.from_user.id)
+    stats = await subscription_client.get_stats(message.from_user.id)
 
     if stats["total_subscriptions"] == 0:
         await message.answer("У вас пока нет подписок. Добавьте первую командой /add")

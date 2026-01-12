@@ -9,7 +9,7 @@ from src.api.routes import health, subscriptions, users
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
 from src.db.database import AsyncSessionLocal
-from src.db.repository import SubscriptionRepository, UserRepository
+from src.db.repositories import SubscriptionRepository, UserRepository
 from src.metrics.prometheus import (
     bot_active_users_24h,
     subscriptions_monthly_amount_rub,

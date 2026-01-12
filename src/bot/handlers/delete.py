@@ -3,7 +3,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from src.bot.api_client import APIClient
+from src.bot.api import SubscriptionAPIClient
 from src.bot.keyboards import confirm_keyboard, subscriptions_keyboard
 from src.core.logging import get_logger
 
@@ -12,12 +12,12 @@ router = Router()
 
 
 @router.message(Command("delete"))
-async def cmd_delete(message: Message, api_client: APIClient):
+async def cmd_delete(message: Message, subscription_client: SubscriptionAPIClient):
     """Start deleting subscription."""
     if not message.from_user:
         return
 
-    subscriptions = await api_client.get_subscriptions(message.from_user.id)
+    subscriptions = await subscription_client.get_subscriptions(message.from_user.id)
 
     if not subscriptions:
         await message.answer("У вас нет подписок")
@@ -30,12 +30,12 @@ async def cmd_delete(message: Message, api_client: APIClient):
 
 
 @router.callback_query(F.data.startswith("sub:"))
-async def select_subscription(callback: CallbackQuery, api_client: APIClient):
+async def select_subscription(callback: CallbackQuery, subscription_client: SubscriptionAPIClient):
     """Confirm deletion."""
     subscription_id = int(callback.data.split(":")[1])
 
     # Get subscription details
-    subscriptions = await api_client.get_subscriptions(callback.from_user.id)
+    subscriptions = await subscription_client.get_subscriptions(callback.from_user.id)
     subscription = next((s for s in subscriptions if s["id"] == subscription_id), None)
 
     if not subscription:
@@ -50,7 +50,7 @@ async def select_subscription(callback: CallbackQuery, api_client: APIClient):
 
 
 @router.callback_query(F.data.startswith("delete:"))
-async def confirm_deletion(callback: CallbackQuery, api_client: APIClient):
+async def confirm_deletion(callback: CallbackQuery, subscription_client: SubscriptionAPIClient):
     """Process deletion confirmation."""
     parts = callback.data.split(":")
     action = parts[1]
@@ -62,7 +62,7 @@ async def confirm_deletion(callback: CallbackQuery, api_client: APIClient):
         return
 
     try:
-        await api_client.delete_subscription(subscription_id)
+        await subscription_client.delete_subscription(subscription_id)
         await callback.message.edit_text("✅ Подписка удалена")
         logger.info("subscription_deleted", user_id=callback.from_user.id, subscription_id=subscription_id)
     except Exception as e:

@@ -2,13 +2,6 @@
 from fastapi import APIRouter, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from src.metrics.prometheus import (
-    bot_active_users_24h,
-    subscriptions_monthly_amount_rub,
-    subscriptions_total,
-    users_total,
-)
-
 router = APIRouter(tags=["system"])
 
 
