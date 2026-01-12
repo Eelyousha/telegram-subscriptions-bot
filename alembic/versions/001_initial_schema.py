@@ -20,9 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Create users table
+    # Note: Using BigInteger for telegram_id to support int64 (Telegram IDs can exceed int32)
     op.create_table(
         'users',
-        sa.Column('telegram_id', sa.Integer(), nullable=False),
+        sa.Column('telegram_id', sa.BigInteger(), nullable=False),
         sa.Column('username', sa.String(length=255), nullable=True),
         sa.Column('first_name', sa.String(length=255), nullable=True),
         sa.Column('last_seen', sa.DateTime(), nullable=True),
@@ -34,7 +35,7 @@ def upgrade() -> None:
     op.create_table(
         'subscriptions',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('telegram_id', sa.Integer(), nullable=False),
+        sa.Column('telegram_id', sa.BigInteger(), nullable=False),
         sa.Column('name', sa.String(length=100), nullable=False),
         sa.Column('amount', sa.Float(), nullable=False),
         sa.Column('currency', sa.String(length=3), nullable=False),

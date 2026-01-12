@@ -1,7 +1,17 @@
 """Database models."""
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -16,7 +26,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    telegram_id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str | None] = mapped_column(String(255))
     first_name: Mapped[str | None] = mapped_column(String(255))
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
@@ -32,7 +42,7 @@ class Subscription(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     telegram_id: Mapped[int] = mapped_column(
-        ForeignKey("users.telegram_id"), index=True
+        BigInteger, ForeignKey("users.telegram_id"), index=True
     )
     name: Mapped[str] = mapped_column(String(100))
     amount: Mapped[float] = mapped_column(Float)
