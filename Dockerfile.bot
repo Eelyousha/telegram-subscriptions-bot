@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install Poetry
+RUN pip install --no-cache-dir poetry==1.8.2
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock* ./
+
+# Install dependencies
+# --no-root: don't install the project itself, only dependencies
+# --no-dev: skip dev dependencies in production
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root --only main
+
+# Copy application code
+COPY src/ ./src/
+
+# Start bot
+CMD python -m src.bot.main
