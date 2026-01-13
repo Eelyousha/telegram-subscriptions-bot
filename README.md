@@ -352,7 +352,3 @@ pytest tests/test_api/test_subscriptions.py -v
 2. Создайте миграцию: `alembic revision --autogenerate -m "description"`
 3. Проверьте сгенерированную миграцию в `alembic/versions/`
 4. Примените миграцию: `alembic upgrade head`
-
-## Лицензия
-
-MIT
